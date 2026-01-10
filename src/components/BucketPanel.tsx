@@ -1,36 +1,46 @@
 import { Plus } from "lucide-react";
-import { BucketType, CashflowItem } from "../types";
+import { BucketType, CashflowItem, CashflowMode, DisplayPeriod } from "../types";
 import { ItemCard } from "./ItemCard";
 
 interface BucketPanelProps {
   title: BucketType;
   items: CashflowItem[];
+  mode: CashflowMode;
+  displayPeriod: DisplayPeriod;
   onAdd: () => void;
   onEditItem: (item: CashflowItem) => void;
   onDragStart: (item: CashflowItem) => void;
   onDragEnd: () => void;
-  onDrop: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent, itemId?: string) => void;
   onDragOver: (e: React.DragEvent) => void;
+  onItemDragOver: (itemId: string) => void;
   isDragOver: boolean;
+  dragOverItemId: string | null;
+  draggedItemId: string | null;
 }
 
 export const BucketPanel = ({
   title,
   items,
+  mode,
+  displayPeriod,
   onAdd,
   onEditItem,
   onDragStart,
   onDragEnd,
   onDrop,
   onDragOver,
+  onItemDragOver,
   isDragOver,
+  dragOverItemId,
+  draggedItemId,
 }: BucketPanelProps) => {
   return (
     <div
       className={`bg-neutral-50 border-2 rounded-lg p-6 flex flex-col transition-all duration-200 ${
         isDragOver ? "border-primary bg-secondary" : "border-border"
       }`}
-      onDrop={onDrop}
+      onDrop={(e) => onDrop(e)}
       onDragOver={onDragOver}
     >
       <div className="flex items-center justify-between mb-6">
@@ -54,12 +64,28 @@ export const BucketPanel = ({
             <ItemCard
               key={item.id}
               item={item}
+              mode={mode}
+              displayPeriod={displayPeriod}
               onEdit={() => onEditItem(item)}
               onDragStart={(e) => {
                 e.dataTransfer.effectAllowed = "move";
                 onDragStart(item);
               }}
               onDragEnd={onDragEnd}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Don't highlight the item being dragged
+                if (draggedItemId !== item.id) {
+                  onItemDragOver(item.id);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDrop(e, item.id);
+              }}
+              isDragOver={dragOverItemId === item.id && draggedItemId !== item.id}
             />
           ))
         )}
