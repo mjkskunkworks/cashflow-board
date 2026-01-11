@@ -4,6 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Material Symbols Rounded icon styles */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  color: #18191B;
+}
+
+/* Icon size variants */
+.icon-card {
+  font-size: 20px;
+}
+
+.icon-modal {
+  font-size: 24px;
+}
+
 @layer base {
   :root {
     --color-border: 220 14% 90%;

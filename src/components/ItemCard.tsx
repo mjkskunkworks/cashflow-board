@@ -69,30 +69,36 @@ export const ItemCard = ({
         />
         <div className="flex-1 p-4">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className={`text-body-sm mb-1 truncate ${
-                disabled ? "text-neutral-400" : "text-muted-foreground"
-              }`}>
-                {item.title}
-              </p>
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <p className={`text-h4 font-mono ${amountColorClass}`} style={{ fontWeight: 500, ...amountStyle }}>
-                  {amountText}
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              {/* Icon */}
+              <span className="material-symbols-rounded icon-card flex-shrink-0" style={{ opacity: disabled ? 0.5 : 1 }}>
+                {item.iconName || "help"}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-body-sm mb-1 truncate ${
+                  disabled ? "text-neutral-400" : "text-muted-foreground"
+                }`}>
+                  {item.title}
                 </p>
-                {item.isEstimate && (
-                  <span
-                    className="text-xs text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded"
-                    title="Estimate"
-                  >
-                    EST
-                  </span>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <p className={`text-h4 font-mono ${amountColorClass}`} style={{ fontWeight: 500, ...amountStyle }}>
+                    {amountText}
+                  </p>
+                  {item.isEstimate && (
+                    <span
+                      className="text-xs text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded"
+                      title="Estimate"
+                    >
+                      EST
+                    </span>
+                  )}
+                </div>
+                {showNote && (
+                  <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                    {item.whatIfNote}
+                  </p>
                 )}
               </div>
-              {showNote && (
-                <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-                  {item.whatIfNote}
-                </p>
-              )}
             </div>
             <button
               onClick={(e) => {

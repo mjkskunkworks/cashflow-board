@@ -62,10 +62,15 @@ export const GroupCard = ({
           style={{ backgroundColor: colorHex }}
           aria-hidden="true"
         />
-        <div className="flex-1 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        {/* Icon */}
+                        <span className="material-symbols-rounded icon-card flex-shrink-0">
+                          {group.iconName || "help"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
                 {/* Chevron for expand/collapse */}
                 <button
                   onClick={(e) => {
@@ -89,18 +94,14 @@ export const GroupCard = ({
                 <p className="text-body-sm truncate text-muted-foreground">
                   {group.name}
                 </p>
+                </div>
                 
-                {/* Stack icon */}
-                <span className="material-symbols-rounded text-muted-foreground flex-shrink-0" style={{ fontSize: '16px', lineHeight: '1' }}>
-                  stack
-                </span>
-              </div>
-              
-              {/* Group total */}
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <p className="text-h4 font-mono" style={{ fontWeight: 500 }}>
-                  {amountText}
-                </p>
+                {/* Group total */}
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <p className="text-h4 font-mono" style={{ fontWeight: 500 }}>
+                    {amountText}
+                  </p>
+                </div>
               </div>
             </div>
             <button

@@ -47,6 +47,7 @@ export interface CashflowItem {
   bucket: BucketType;
   groupId: string | null;
   color: CashflowItemColor;
+  iconName: string | null; // Material Symbols icon name
   createdAt: Date;
   updatedAt: Date;
   createdByUserId: string | null;
@@ -60,6 +61,7 @@ export interface CashflowGroup {
   name: string;
   bucket: BucketType;
   color: CashflowItemColor;
+  iconName: string | null; // Material Symbols icon name
   isExpanded: boolean;
   createdAt: Date;
   updatedAt: Date;

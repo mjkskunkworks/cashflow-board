@@ -8,11 +8,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { IconPickerModal } from "./IconPickerModal";
 
 interface GroupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (name: string, color: CashflowItemColor) => void;
+  onSave: (name: string, color: CashflowItemColor, iconName: string | null) => void;
   onDelete?: () => void;
   initialData?: CashflowGroup | null;
 }
@@ -26,20 +27,24 @@ export const GroupModal = ({
 }: GroupModalProps) => {
   const [name, setName] = useState("");
   const [color, setColor] = useState<CashflowItemColor>("blue");
+  const [iconName, setIconName] = useState<string | null>(null);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   useEffect(() => {
     if (initialData) {
       setName(initialData.name);
       setColor(initialData.color);
+      setIconName(initialData.iconName ?? null);
     } else {
       setName("");
       setColor("blue");
+      setIconName(null);
     }
   }, [initialData, isOpen]);
 
   const handleSave = () => {
     if (!name.trim()) return;
-    onSave(name.trim(), color);
+    onSave(name.trim(), color, iconName);
     onClose();
   };
 
@@ -75,12 +80,40 @@ export const GroupModal = ({
               placeholder="Enter group name"
               autoFocus
             />
-          </div>
+                  </div>
 
-          <div className="space-y-2">
-            <label className="text-body-sm font-medium text-foreground">
-              Color
-            </label>
+                  <div className="space-y-2">
+                    <label className="text-body-sm font-medium text-foreground">
+                      Icon
+                    </label>
+                    <div className="flex items-center gap-3">
+                      {/* Icon preview */}
+                      <span className="material-symbols-rounded icon-modal flex-shrink-0" style={{ color: "#18191B" }}>
+                        {iconName || "help"}
+                      </span>
+                      <div className="flex gap-2 flex-1">
+                        <Button
+                          type="button"
+                          onClick={() => setIsIconPickerOpen(true)}
+                          className="bg-transparent text-foreground border border-border hover:bg-secondary h-10 px-4 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        >
+                          Choose icon
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => setIconName(null)}
+                          className="bg-transparent text-foreground border border-border hover:bg-secondary h-10 px-4 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-body-sm font-medium text-foreground">
+                      Color
+                    </label>
             <div className="grid grid-cols-4 gap-2">
               {COLOR_OPTIONS.map((colorOption) => (
                 <button
@@ -127,6 +160,13 @@ export const GroupModal = ({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <IconPickerModal
+        isOpen={isIconPickerOpen}
+        onClose={() => setIsIconPickerOpen(false)}
+        onSelect={setIconName}
+        currentIconName={iconName}
+      />
     </Dialog>
   );
 };

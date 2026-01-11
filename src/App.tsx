@@ -16,6 +16,7 @@ function migrateNode(node: any): CashflowNode {
       id: node.id || crypto.randomUUID(),
       type: "GROUP" as const,
       isExpanded: typeof node.isExpanded === 'boolean' ? node.isExpanded : true,
+      iconName: node.iconName ?? null,
       createdAt: node.createdAt || new Date(),
       updatedAt: node.updatedAt || new Date(),
       createdByUserId: node.createdByUserId ?? null,
@@ -67,7 +68,12 @@ function migrateNode(node: any): CashflowNode {
   if (!('groupId' in migrated)) {
     migrated.groupId = null;
   }
-  
+
+  // Migrate iconName field - default to null if missing
+  if (!('iconName' in migrated)) {
+    migrated.iconName = null;
+  }
+
   return migrated as CashflowItem;
 }
 
@@ -331,13 +337,14 @@ function App() {
     frequency: Frequency,
     isEstimate: boolean,
     whatIfNote: string | null,
-    color: CashflowItemColor
+    color: CashflowItemColor,
+    iconName: string | null
   ) => {
     try {
       if (modalState.editingItem) {
-        updateItem(modalState.editingItem.id, { title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, color });
+        updateItem(modalState.editingItem.id, { title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, color, iconName });
       } else if (modalState.bucket) {
-        createItem({ title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, bucket: modalState.bucket, color, groupId: null });
+        createItem({ title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, bucket: modalState.bucket, color, iconName, groupId: null });
       }
       setModalState({ isOpen: false, bucket: null, editingItem: null });
     } catch (err) {
@@ -345,6 +352,18 @@ function App() {
     }
   };
 
+  const handleGroupModalSave = (name: string, color: CashflowItemColor, iconName: string | null) => {
+    try {
+      if (groupModalState.editingGroup) {
+        updateGroup(groupModalState.editingGroup.id, { name, color, iconName });
+      } else if (groupModalState.bucket) {
+        createGroup({ name, bucket: groupModalState.bucket, color, iconName });
+      }
+      setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
+    } catch (err) {
+      console.error("Failed to save group:", err);
+    }
+  };
 
   const handleModalDelete = () => {
     if (modalState.editingItem) {
@@ -654,14 +673,7 @@ function App() {
       <GroupModal
         isOpen={groupModalState.isOpen}
         onClose={() => setGroupModalState({ isOpen: false, bucket: null, editingGroup: null })}
-        onSave={(name, color) => {
-          if (groupModalState.editingGroup) {
-            updateGroup(groupModalState.editingGroup.id, { name, color });
-          } else if (groupModalState.bucket) {
-            createGroup({ name, color, bucket: groupModalState.bucket, isExpanded: true });
-          }
-          setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
-        }}
+        onSave={handleGroupModalSave}
         onDelete={groupModalState.editingGroup ? handleGroupModalDelete : undefined}
         initialData={groupModalState.editingGroup}
       />

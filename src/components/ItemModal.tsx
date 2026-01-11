@@ -10,11 +10,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { IconPickerModal } from "./IconPickerModal";
 
 interface ItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (title: string, realAmount: number | null, whatIfAmount: number | null, frequency: Frequency, isEstimate: boolean, whatIfNote: string | null, color: CashflowItemColor) => void;
+  onSave: (title: string, realAmount: number | null, whatIfAmount: number | null, frequency: Frequency, isEstimate: boolean, whatIfNote: string | null, color: CashflowItemColor, iconName: string | null) => void;
   onDelete?: () => void;
   initialData?: CashflowItem | null;
   displayPeriod: DisplayPeriod; // Kept for consistency but not used in modal (previews show all periods)
@@ -38,6 +39,8 @@ export const ItemModal = ({
   const [isEstimate, setIsEstimate] = useState(false);
   const [whatIfNote, setWhatIfNote] = useState("");
   const [color, setColor] = useState<CashflowItemColor>("blue");
+  const [iconName, setIconName] = useState<string | null>(null);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -48,6 +51,7 @@ export const ItemModal = ({
       setIsEstimate(initialData.isEstimate ?? false);
       setWhatIfNote(initialData.whatIfNote ?? "");
       setColor(initialData.color);
+      setIconName(initialData.iconName ?? null);
     } else {
       setTitle("");
       setRealAmount("");
@@ -56,6 +60,7 @@ export const ItemModal = ({
       setIsEstimate(false);
       setWhatIfNote("");
       setColor("blue");
+      setIconName(null);
     }
   }, [initialData, isOpen]);
 
@@ -87,7 +92,7 @@ export const ItemModal = ({
     if (parsedRealAmount === null && parsedWhatIfAmount === null) return;
     
     const finalWhatIfNote = whatIfNote.trim() || null;
-    onSave(title.trim(), parsedRealAmount, parsedWhatIfAmount, frequency, isEstimate, finalWhatIfNote, color);
+    onSave(title.trim(), parsedRealAmount, parsedWhatIfAmount, frequency, isEstimate, finalWhatIfNote, color, iconName);
     onClose();
   };
 
@@ -242,6 +247,34 @@ export const ItemModal = ({
 
           <div className="space-y-2">
             <label className="text-body-sm font-medium text-foreground">
+              Icon
+            </label>
+            <div className="flex items-center gap-3">
+              {/* Icon preview */}
+              <span className="material-symbols-rounded icon-modal flex-shrink-0" style={{ color: "#18191B" }}>
+                {iconName || "help"}
+              </span>
+              <div className="flex gap-2 flex-1">
+                <Button
+                  type="button"
+                  onClick={() => setIsIconPickerOpen(true)}
+                  className="bg-transparent text-foreground border border-border hover:bg-secondary h-10 px-4 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  Choose icon
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setIconName(null)}
+                  className="bg-transparent text-foreground border border-border hover:bg-secondary h-10 px-4 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-body-sm font-medium text-foreground">
               Color
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -290,6 +323,13 @@ export const ItemModal = ({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <IconPickerModal
+        isOpen={isIconPickerOpen}
+        onClose={() => setIsIconPickerOpen(false)}
+        onSelect={setIconName}
+        currentIconName={iconName}
+      />
     </Dialog>
   );
 };
