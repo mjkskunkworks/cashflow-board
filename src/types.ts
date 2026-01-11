@@ -37,11 +37,15 @@ export const COLOR_OPTIONS: { value: CashflowItemColor; label: string; hex: stri
 
 export interface CashflowItem {
   id: string;
+  type: "ITEM";
   title: string;
   realAmount: number | null;
   whatIfAmount: number | null;
   frequency: Frequency;
+  isEstimate: boolean;
+  whatIfNote: string | null;
   bucket: BucketType;
+  groupId: string | null;
   color: CashflowItemColor;
   createdAt: Date;
   updatedAt: Date;
@@ -50,7 +54,22 @@ export interface CashflowItem {
   amount?: number;
 }
 
+export interface CashflowGroup {
+  id: string;
+  type: "GROUP";
+  name: string;
+  bucket: BucketType;
+  color: CashflowItemColor;
+  isExpanded: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUserId: string | null;
+}
+
+export type CashflowNode = CashflowItem | CashflowGroup;
+
 export interface DragState {
-  draggedItem: CashflowItem | null;
+  draggedNode: CashflowNode | null;
   sourceBucket: BucketType | null;
+  draggedType: "ITEM" | "GROUP" | null;
 }

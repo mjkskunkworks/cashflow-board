@@ -14,7 +14,7 @@ import {
 interface ItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (title: string, realAmount: number | null, whatIfAmount: number | null, frequency: Frequency, color: CashflowItemColor) => void;
+  onSave: (title: string, realAmount: number | null, whatIfAmount: number | null, frequency: Frequency, isEstimate: boolean, whatIfNote: string | null, color: CashflowItemColor) => void;
   onDelete?: () => void;
   initialData?: CashflowItem | null;
   displayPeriod: DisplayPeriod; // Kept for consistency but not used in modal (previews show all periods)
@@ -35,6 +35,8 @@ export const ItemModal = ({
   const [realAmount, setRealAmount] = useState("");
   const [whatIfAmount, setWhatIfAmount] = useState("");
   const [frequency, setFrequency] = useState<Frequency>("M");
+  const [isEstimate, setIsEstimate] = useState(false);
+  const [whatIfNote, setWhatIfNote] = useState("");
   const [color, setColor] = useState<CashflowItemColor>("blue");
 
   useEffect(() => {
@@ -43,12 +45,16 @@ export const ItemModal = ({
       setRealAmount(initialData.realAmount != null ? initialData.realAmount.toString() : "");
       setWhatIfAmount(initialData.whatIfAmount != null ? initialData.whatIfAmount.toString() : "");
       setFrequency(initialData.frequency || "M");
+      setIsEstimate(initialData.isEstimate ?? false);
+      setWhatIfNote(initialData.whatIfNote ?? "");
       setColor(initialData.color);
     } else {
       setTitle("");
       setRealAmount("");
       setWhatIfAmount("");
       setFrequency("M");
+      setIsEstimate(false);
+      setWhatIfNote("");
       setColor("blue");
     }
   }, [initialData, isOpen]);
@@ -80,7 +86,8 @@ export const ItemModal = ({
     // Validation: at least one amount must be provided
     if (parsedRealAmount === null && parsedWhatIfAmount === null) return;
     
-    onSave(title.trim(), parsedRealAmount, parsedWhatIfAmount, frequency, color);
+    const finalWhatIfNote = whatIfNote.trim() || null;
+    onSave(title.trim(), parsedRealAmount, parsedWhatIfAmount, frequency, isEstimate, finalWhatIfNote, color);
     onClose();
   };
 
@@ -143,6 +150,23 @@ export const ItemModal = ({
             </select>
           </div>
 
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isEstimate}
+                onChange={(e) => setIsEstimate(e.target.checked)}
+                className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+              />
+              <span className="text-body-sm font-medium text-foreground">
+                Estimate
+              </span>
+            </label>
+            <p className="text-xs text-neutral-500 ml-6">
+              Mark variable or budgeted amounts
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label
@@ -197,6 +221,23 @@ export const ItemModal = ({
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="whatIfNote"
+              className="text-body-sm font-medium text-foreground"
+            >
+              What-If note <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <textarea
+              id="whatIfNote"
+              value={whatIfNote}
+              onChange={(e) => setWhatIfNote(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 text-body bg-card text-foreground border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-fast resize-none"
+              placeholder="Add a note about this what-if scenario..."
+            />
           </div>
 
           <div className="space-y-2">

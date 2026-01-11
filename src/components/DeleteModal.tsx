@@ -11,15 +11,16 @@ interface DeleteModalProps {
   isOpen: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  title?: string;
 }
 
-export const DeleteModal = ({ isOpen, onConfirm, onCancel }: DeleteModalProps) => {
+export const DeleteModal = ({ isOpen, onConfirm, onCancel, title = "Delete this item?" }: DeleteModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-[400px] bg-popover text-popover-foreground">
         <DialogHeader>
           <DialogTitle className="text-h3 text-foreground">
-            Delete this item?
+            {title}
           </DialogTitle>
         </DialogHeader>
         

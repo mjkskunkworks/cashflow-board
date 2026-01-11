@@ -81,3 +81,11 @@ export function isWhatIfDisplayed(item: CashflowItem, mode: CashflowMode): boole
 export function isDisabled(item: CashflowItem, mode: CashflowMode): boolean {
   return item.realAmount == null && item.whatIfAmount != null && mode === "REAL";
 }
+
+export function shouldShowWhatIfNote(item: CashflowItem, mode: CashflowMode): boolean {
+  // Show note only when ALL are true:
+  // 1) mode == WHAT IF
+  // 2) Card is displaying whatIfAmount (use isWhatIfDisplayed)
+  // 3) whatIfNote is non-empty
+  return mode === "WHAT IF" && isWhatIfDisplayed(item, mode) && item.whatIfNote != null && item.whatIfNote.trim() !== "";
+}

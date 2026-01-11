@@ -2,23 +2,44 @@ import React, { useState, useMemo, useEffect } from "react";
 import { TotalDisplay } from "./components/TotalDisplay";
 import { BucketPanel } from "./components/BucketPanel";
 import { ItemModal } from "./components/ItemModal";
+import { GroupModal } from "./components/GroupModal";
 import { DeleteModal } from "./components/DeleteModal";
-import { CashflowItem, BucketType, DragState, CashflowItemColor, CashflowMode, DisplayPeriod, Frequency } from "./types";
+import { CashflowItem, CashflowGroup, CashflowNode, BucketType, DragState, CashflowItemColor, CashflowMode, DisplayPeriod, Frequency } from "./types";
 import { getActiveAmountForMath } from "./lib/utils";
 
 // Migration function
-function migrateItem(item: any): CashflowItem {
-  let migrated: any = { ...item };
+function migrateNode(node: any): CashflowNode {
+  // If it's already a group, ensure it has all required fields
+  if (node.type === "GROUP") {
+    return {
+      ...node,
+      id: node.id || crypto.randomUUID(),
+      type: "GROUP" as const,
+      isExpanded: typeof node.isExpanded === 'boolean' ? node.isExpanded : true,
+      createdAt: node.createdAt || new Date(),
+      updatedAt: node.updatedAt || new Date(),
+      createdByUserId: node.createdByUserId ?? null,
+    } as CashflowGroup;
+  }
+  
+  // Otherwise, it's an item (legacy or new format)
+  let migrated: any = { ...node };
+  
+  // Set type to ITEM if not present
+  if (!migrated.type) {
+    migrated.type = "ITEM";
+  }
   
   // Migrate amount field to realAmount/whatIfAmount
-  if ('realAmount' in item || 'whatIfAmount' in item) {
+  if ('realAmount' in node || 'whatIfAmount' in node) {
     // Ensure both fields exist
-    migrated.realAmount = item.realAmount ?? null;
-    migrated.whatIfAmount = item.whatIfAmount ?? null;
-  } else if ('amount' in item && typeof item.amount === 'number') {
-    const { amount, ...rest } = item;
+    migrated.realAmount = node.realAmount ?? null;
+    migrated.whatIfAmount = node.whatIfAmount ?? null;
+  } else if ('amount' in node && typeof node.amount === 'number') {
+    const { amount, ...rest } = node;
     migrated = {
       ...rest,
+      type: "ITEM",
       realAmount: amount,
       whatIfAmount: null,
     };
@@ -32,23 +53,42 @@ function migrateItem(item: any): CashflowItem {
     migrated.frequency = 'M' as Frequency;
   }
   
+  // Migrate isEstimate field - default to false if missing
+  if (typeof migrated.isEstimate !== 'boolean') {
+    migrated.isEstimate = false;
+  }
+  
+  // Migrate whatIfNote field - default to null/empty string if missing
+  if (migrated.whatIfNote == null || migrated.whatIfNote === undefined) {
+    migrated.whatIfNote = null;
+  }
+  
+  // Migrate groupId field - default to null if missing
+  if (!('groupId' in migrated)) {
+    migrated.groupId = null;
+  }
+  
   return migrated as CashflowItem;
 }
 
 function App() {
-  const [items, setItems] = useState<CashflowItem[]>(() => {
+  const [nodes, setNodes] = useState<CashflowNode[]>(() => {
     try {
       const saved = localStorage.getItem("cashflow-items");
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Migrate items on load
-        return Array.isArray(parsed) ? parsed.map(migrateItem) : [];
+        // Migrate nodes on load (items and groups)
+        return Array.isArray(parsed) ? parsed.map(migrateNode) : [];
       }
       return [];
     } catch {
       return [];
     }
-  });  
+  });
+  
+  // Helper functions to get items and groups separately
+  const items = useMemo(() => nodes.filter((node): node is CashflowItem => node.type === "ITEM"), [nodes]);
+  const groups = useMemo(() => nodes.filter((node): node is CashflowGroup => node.type === "GROUP"), [nodes]);  
 
   const [mode, setMode] = useState<CashflowMode>(() => {
     try {
@@ -71,8 +111,8 @@ function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem("cashflow-items", JSON.stringify(items));
-  }, [items]);
+    localStorage.setItem("cashflow-items", JSON.stringify(nodes));
+  }, [nodes]);
 
   useEffect(() => {
     localStorage.setItem("cashflow-mode", mode);
@@ -83,17 +123,18 @@ function App() {
   }, [displayPeriod]);
   
 
-  const createItem = (item: Omit<CashflowItem, "id" | "createdAt" | "updatedAt" | "createdByUserId" | "amount">) => {
+  const createItem = (item: Omit<CashflowItem, "id" | "type" | "createdAt" | "updatedAt" | "createdByUserId" | "amount"> & { groupId?: string | null }) => {
     const now = new Date();
     const newItem: CashflowItem = {
       ...item,
+      type: "ITEM",
       id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       createdByUserId: null,
     };
-    setItems((prev) => {
-      // Find the index of the last item in the target bucket
+    setNodes((prev) => {
+      // Find the index of the last node in the target bucket (groups or items)
       let insertIndex = prev.length;
       for (let i = prev.length - 1; i >= 0; i--) {
         if (prev[i].bucket === item.bucket) {
@@ -101,8 +142,6 @@ function App() {
           break;
         }
       }
-      // If no items in target bucket found, append at the end
-      // This will make it appear at the bottom when filtered by bucket
       return [
         ...prev.slice(0, insertIndex),
         newItem,
@@ -111,22 +150,81 @@ function App() {
     });
   };
 
+  const createGroup = (group: Omit<CashflowGroup, "id" | "type" | "createdAt" | "updatedAt" | "createdByUserId">) => {
+    const now = new Date();
+    const newGroup: CashflowGroup = {
+      ...group,
+      type: "GROUP",
+      id: crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+      createdByUserId: null,
+    };
+    setNodes((prev) => {
+      // Find the index of the last node in the target bucket
+      let insertIndex = prev.length;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].bucket === group.bucket) {
+          insertIndex = i + 1;
+          break;
+        }
+      }
+      return [
+        ...prev.slice(0, insertIndex),
+        newGroup,
+        ...prev.slice(insertIndex),
+      ];
+    });
+  };
+
   const updateItem = (id: string, patch: Partial<CashflowItem>) => {
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
+    setNodes((prev) =>
+      prev.map((node) => (node.id === id && node.type === "ITEM" ? { ...node, ...patch, updatedAt: new Date() } : node))
+    );
+  };
+
+  const updateGroup = (id: string, patch: Partial<CashflowGroup>) => {
+    setNodes((prev) =>
+      prev.map((node) => (node.id === id && node.type === "GROUP" ? { ...node, ...patch, updatedAt: new Date() } : node))
+    );
+  };
+
+  const toggleGroupExpanded = (id: string) => {
+    setNodes((prev) =>
+      prev.map((node) => 
+        node.id === id && node.type === "GROUP" 
+          ? { ...node, isExpanded: !node.isExpanded, updatedAt: new Date() }
+          : node
+      )
     );
   };
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    setNodes((prev) => prev.filter((node) => node.id !== id || node.type !== "ITEM"));
+  };
+
+  const removeGroup = (id: string) => {
+    setNodes((prev) => {
+      // First, ungroup all items that belong to this group
+      const ungroupedItems = prev.map((node) => 
+        node.type === "ITEM" && node.groupId === id 
+          ? { ...node, groupId: null as string | null }
+          : node
+      );
+      // Then remove the group
+      return ungroupedItems.filter((node) => !(node.id === id && node.type === "GROUP"));
+    });
   };
 
   const [dragState, setDragState] = useState<DragState>({
-    draggedItem: null,
+    draggedNode: null,
     sourceBucket: null,
+    draggedType: null,
   });
   
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [dragInsertBeforeId, setDragInsertBeforeId] = useState<string | null>(null); // For divider line indicator
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -138,18 +236,48 @@ function App() {
     editingItem: null,
   });
 
+  const [groupModalState, setGroupModalState] = useState<{
+    isOpen: boolean;
+    bucket: BucketType | null;
+    editingGroup: CashflowGroup | null;
+  }>({
+    isOpen: false,
+    bucket: null,
+    editingGroup: null,
+  });
+
   const [deleteModalState, setDeleteModalState] = useState<{
     isOpen: boolean;
     itemId: string | null;
+    groupId: string | null;
   }>({
     isOpen: false,
     itemId: null,
+    groupId: null,
   });
 
   const [dragOverBucket, setDragOverBucket] = useState<BucketType | null>(null);
 
-  const getItemsByBucket = (bucket: BucketType): CashflowItem[] => {
-    if (!items) return [];
+  // Get nodes by bucket
+  const getTopLevelNodesByBucket = (bucket: BucketType): CashflowNode[] => {
+    // Return all top-level nodes (items with groupId=null and groups) in their actual order from the nodes array
+    return nodes.filter((node) => 
+      node.bucket === bucket && 
+      (node.type === "GROUP" || (node.type === "ITEM" && node.groupId === null))
+    );
+  };
+
+  // These functions are kept for backward compatibility but are no longer used
+  // The new getTopLevelNodesByBucket returns nodes in their actual order
+  // const getTopLevelItemsByBucket = (bucket: BucketType): CashflowItem[] => {
+  //   return items.filter((item) => item.bucket === bucket && item.groupId === null);
+  // };
+
+  // const getTopLevelGroupsByBucket = (bucket: BucketType): CashflowGroup[] => {
+  //   return groups.filter((group) => group.bucket === bucket);
+  // };
+
+  const getAllItemsByBucket = (bucket: BucketType): CashflowItem[] => {
     return items.filter((item) => item.bucket === bucket);
   };
 
@@ -164,11 +292,19 @@ function App() {
     return inTotal - outTotal;
   }, [items, mode, displayPeriod]);
 
-  const handleAddClick = (bucket: BucketType) => {
+  const handleAddItemClick = (bucket: BucketType) => {
     setModalState({
       isOpen: true,
       bucket,
       editingItem: null,
+    });
+  };
+
+  const handleAddGroupClick = (bucket: BucketType) => {
+    setGroupModalState({
+      isOpen: true,
+      bucket,
+      editingGroup: null,
     });
   };
 
@@ -180,18 +316,28 @@ function App() {
     });
   };
 
+  const handleEditGroup = (group: CashflowGroup) => {
+    setGroupModalState({
+      isOpen: true,
+      bucket: group.bucket,
+      editingGroup: group,
+    });
+  };
+
   const handleModalSave = (
     title: string, 
     realAmount: number | null, 
     whatIfAmount: number | null,
     frequency: Frequency,
+    isEstimate: boolean,
+    whatIfNote: string | null,
     color: CashflowItemColor
   ) => {
     try {
       if (modalState.editingItem) {
-        updateItem(modalState.editingItem.id, { title, realAmount, whatIfAmount, frequency, color });
+        updateItem(modalState.editingItem.id, { title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, color });
       } else if (modalState.bucket) {
-        createItem({ title, realAmount, whatIfAmount, frequency, bucket: modalState.bucket, color });
+        createItem({ title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, bucket: modalState.bucket, color, groupId: null });
       }
       setModalState({ isOpen: false, bucket: null, editingItem: null });
     } catch (err) {
@@ -205,8 +351,20 @@ function App() {
       setDeleteModalState({
         isOpen: true,
         itemId: modalState.editingItem.id,
+        groupId: null,
       });
       setModalState({ isOpen: false, bucket: null, editingItem: null });
+    }
+  };
+
+  const handleGroupModalDelete = () => {
+    if (groupModalState.editingGroup) {
+      setDeleteModalState({
+        isOpen: true,
+        itemId: null,
+        groupId: groupModalState.editingGroup.id,
+      });
+      setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
     }
   };
 
@@ -217,25 +375,35 @@ function App() {
       } catch (err) {
         console.error("Failed to delete item:", err);
       }
+    } else if (deleteModalState.groupId) {
+      try {
+        removeGroup(deleteModalState.groupId);
+      } catch (err) {
+        console.error("Failed to delete group:", err);
+      }
     }
-    setDeleteModalState({ isOpen: false, itemId: null });
+    setDeleteModalState({ isOpen: false, itemId: null, groupId: null });
   };
 
 
-  const handleDragStart = (item: CashflowItem) => {
+  const handleDragStart = (node: CashflowNode) => {
     setDragState({
-      draggedItem: item,
-      sourceBucket: item.bucket as BucketType,
+      draggedNode: node,
+      sourceBucket: node.bucket as BucketType,
+      draggedType: node.type,
     });
   };
 
   const handleDragEnd = () => {
     setDragState({
-      draggedItem: null,
+      draggedNode: null,
       sourceBucket: null,
+      draggedType: null,
     });
     setDragOverBucket(null);
     setDragOverItemId(null);
+    setDragOverGroupId(null);
+    setDragInsertBeforeId(null);
   };
 
   const handleDragOver = (e: React.DragEvent, bucket: BucketType) => {
@@ -243,36 +411,64 @@ function App() {
     setDragOverBucket(bucket);
   };
 
-  const handleDrop = (e: React.DragEvent, targetBucket: BucketType, targetItemId?: string) => {
+  const handleDrop = (e: React.DragEvent, targetBucket: BucketType, targetNodeId?: string, targetGroupId?: string | null, insertBeforeId?: string | null) => {
     e.preventDefault();
     e.stopPropagation();
-    const draggedItem = dragState.draggedItem;
-    if (!draggedItem) {
+    const draggedNode = dragState.draggedNode;
+    if (!draggedNode) {
       setDragOverBucket(null);
       setDragOverItemId(null);
+      setDragOverGroupId(null);
+      setDragInsertBeforeId(null);
       return;
     }
 
     try {
-      setItems((prev) => {
-        const isSameBucket = draggedItem.bucket === targetBucket;
-        const needsBucketChange = !isSameBucket;
-        const updatedItem: CashflowItem = needsBucketChange 
-          ? { ...draggedItem, bucket: targetBucket }
-          : draggedItem;
-        
-        // Remove the dragged item first
-        const withoutDragged = prev.filter((item) => item.id !== draggedItem.id);
-        
-        let insertIndex: number;
-        
-        if (targetItemId) {
-          // Dropping on a specific item - find its position in the array after removal and insert before it
-          const targetIndex = withoutDragged.findIndex((item) => item.id === targetItemId && item.bucket === targetBucket);
-          if (targetIndex >= 0) {
-            insertIndex = targetIndex;
+      setNodes((prev) => {
+        if (draggedNode.type === "ITEM") {
+          const draggedItem = draggedNode;
+          // Handle item drop
+          const updatedItem: CashflowItem = {
+            ...draggedItem,
+            bucket: targetBucket,
+            groupId: targetGroupId ?? null,
+          };
+          
+          // Remove the dragged item first
+          const withoutDragged = prev.filter((node) => node.id !== draggedItem.id);
+          
+          // If dropping on a group (adding to group), update groupId and bucket, then insert at end
+          // But if insertBeforeId is provided, we're reordering (even within a group), so skip this
+          if (targetGroupId && !insertBeforeId) {
+            const updatedNodes = withoutDragged.map((node) => 
+              node.id === draggedItem.id ? updatedItem : node
+            );
+            // Add updated item at the end (position doesn't matter for grouped items)
+            return [...updatedNodes, updatedItem];
+          }
+          
+          let insertIndex: number;
+          
+          // Use insertBeforeId if provided (from divider line), otherwise use targetNodeId
+          const targetId = insertBeforeId ?? targetNodeId;
+          
+          if (targetId) {
+            // Dropping on a specific node - find its position in the array after removal and insert before it
+            const targetIndex = withoutDragged.findIndex((node) => node.id === targetId && node.bucket === targetBucket);
+            if (targetIndex >= 0) {
+              insertIndex = targetIndex;
+            } else {
+              // Target not found in target bucket - add to bottom of target bucket
+              insertIndex = withoutDragged.length;
+              for (let i = withoutDragged.length - 1; i >= 0; i--) {
+                if (withoutDragged[i].bucket === targetBucket) {
+                  insertIndex = i + 1;
+                  break;
+                }
+              }
+            }
           } else {
-            // Target not found in target bucket - add to bottom of target bucket
+            // Dropping on bucket panel (empty area) - add to bottom of target bucket
             insertIndex = withoutDragged.length;
             for (let i = withoutDragged.length - 1; i >= 0; i--) {
               if (withoutDragged[i].bucket === targetBucket) {
@@ -281,29 +477,74 @@ function App() {
               }
             }
           }
+          
+          return [
+            ...withoutDragged.slice(0, insertIndex),
+            updatedItem,
+            ...withoutDragged.slice(insertIndex),
+          ];
         } else {
-          // Dropping on bucket panel (empty area) - add to bottom of target bucket
-          insertIndex = withoutDragged.length;
-          for (let i = withoutDragged.length - 1; i >= 0; i--) {
-            if (withoutDragged[i].bucket === targetBucket) {
-              insertIndex = i + 1;
-              break;
+          // Handle group drop - move group and all its children
+          const draggedGroup = draggedNode;
+          // Don't allow dropping a group onto another group (targetGroupId should be ignored for groups)
+          const updatedGroup: CashflowGroup = {
+            ...draggedGroup,
+            bucket: targetBucket,
+          };
+          
+          // Remove the dragged group first
+          let withoutDragged = prev.filter((node) => node.id !== draggedGroup.id);
+          
+          // Update all child items to match the new bucket
+          withoutDragged = withoutDragged.map((node) => 
+            node.type === "ITEM" && node.groupId === draggedGroup.id
+              ? { ...node, bucket: targetBucket }
+              : node
+          );
+          
+          let insertIndex: number;
+          
+          // Use insertBeforeId if provided (from divider line), otherwise use targetNodeId
+          const targetId = insertBeforeId ?? targetNodeId;
+          
+          if (targetId && targetId !== draggedGroup.id) {
+            const targetIndex = withoutDragged.findIndex((node) => node.id === targetId && node.bucket === targetBucket);
+            if (targetIndex >= 0) {
+              insertIndex = targetIndex;
+            } else {
+              insertIndex = withoutDragged.length;
+              for (let i = withoutDragged.length - 1; i >= 0; i--) {
+                if (withoutDragged[i].bucket === targetBucket) {
+                  insertIndex = i + 1;
+                  break;
+                }
+              }
+            }
+          } else {
+            insertIndex = withoutDragged.length;
+            for (let i = withoutDragged.length - 1; i >= 0; i--) {
+              if (withoutDragged[i].bucket === targetBucket) {
+                insertIndex = i + 1;
+                break;
+              }
             }
           }
+          
+          return [
+            ...withoutDragged.slice(0, insertIndex),
+            updatedGroup,
+            ...withoutDragged.slice(insertIndex),
+          ];
         }
-        
-        return [
-          ...withoutDragged.slice(0, insertIndex),
-          updatedItem,
-          ...withoutDragged.slice(insertIndex),
-        ];
       });
     } catch (err) {
-      console.error("Failed to move item:", err);
+      console.error("Failed to move node:", err);
     }
     
     setDragOverBucket(null);
     setDragOverItemId(null);
+    setDragOverGroupId(null);
+    setDragInsertBeforeId(null);
   };
 
 
@@ -320,55 +561,82 @@ function App() {
         
         <main className="mt-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2fr_1fr] gap-6">
-            <BucketPanel
-              title="IN"
-              items={getItemsByBucket("IN")}
+                    <BucketPanel
+                      title="IN"
+                      topLevelNodes={getTopLevelNodesByBucket("IN")}
+                      allItems={getAllItemsByBucket("IN")}
               mode={mode}
               displayPeriod={displayPeriod}
-              onAdd={() => handleAddClick("IN")}
+              onAddItem={() => handleAddItemClick("IN")}
+              onAddGroup={() => handleAddGroupClick("IN")}
               onEditItem={handleEditItem}
+              onEditGroup={handleEditGroup}
+              onToggleGroup={toggleGroupExpanded}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              onDrop={(e, itemId) => handleDrop(e, "IN", itemId)}
+              onDrop={(e, targetNodeId, targetGroupId, insertBeforeId) => handleDrop(e, "IN", targetNodeId, targetGroupId, insertBeforeId)}
               onDragOver={(e) => handleDragOver(e, "IN")}
               onItemDragOver={(itemId) => setDragOverItemId(itemId)}
+              onGroupDragOver={(groupId) => setDragOverGroupId(groupId)}
+              onInsertBefore={(nodeId) => setDragInsertBeforeId(nodeId)}
               isDragOver={dragOverBucket === "IN"}
               dragOverItemId={dragOverItemId}
-              draggedItemId={dragState.draggedItem?.id || null}
+              dragOverGroupId={dragOverGroupId}
+              draggedNodeId={dragState.draggedNode?.id || null}
+              draggedType={dragState.draggedType}
+              dragInsertBeforeId={dragInsertBeforeId}
             />
             
-            <BucketPanel
-              title="OUT"
-              items={getItemsByBucket("OUT")}
+                    <BucketPanel
+                      title="OUT"
+                      topLevelNodes={getTopLevelNodesByBucket("OUT")}
+                      allItems={getAllItemsByBucket("OUT")}
               mode={mode}
               displayPeriod={displayPeriod}
-              onAdd={() => handleAddClick("OUT")}
+              onAddItem={() => handleAddItemClick("OUT")}
+              onAddGroup={() => handleAddGroupClick("OUT")}
               onEditItem={handleEditItem}
+              onEditGroup={handleEditGroup}
+              onToggleGroup={toggleGroupExpanded}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              onDrop={(e, itemId) => handleDrop(e, "OUT", itemId)}
+              onDrop={(e, targetNodeId, targetGroupId) => handleDrop(e, "OUT", targetNodeId, targetGroupId)}
               onDragOver={(e) => handleDragOver(e, "OUT")}
               onItemDragOver={(itemId) => setDragOverItemId(itemId)}
+              onGroupDragOver={(groupId) => setDragOverGroupId(groupId)}
+              onInsertBefore={(nodeId) => setDragInsertBeforeId(nodeId)}
               isDragOver={dragOverBucket === "OUT"}
               dragOverItemId={dragOverItemId}
-              draggedItemId={dragState.draggedItem?.id || null}
+              dragOverGroupId={dragOverGroupId}
+              draggedNodeId={dragState.draggedNode?.id || null}
+              draggedType={dragState.draggedType}
+              dragInsertBeforeId={dragInsertBeforeId}
             />
             
-            <BucketPanel
-              title="HOLDING"
-              items={getItemsByBucket("HOLDING")}
+                    <BucketPanel
+                      title="HOLDING"
+                      topLevelNodes={getTopLevelNodesByBucket("HOLDING")}
+                      allItems={getAllItemsByBucket("HOLDING")}
               mode={mode}
               displayPeriod={displayPeriod}
-              onAdd={() => handleAddClick("HOLDING")}
+              onAddItem={() => handleAddItemClick("HOLDING")}
+              onAddGroup={() => handleAddGroupClick("HOLDING")}
               onEditItem={handleEditItem}
+              onEditGroup={handleEditGroup}
+              onToggleGroup={toggleGroupExpanded}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              onDrop={(e, itemId) => handleDrop(e, "HOLDING", itemId)}
+              onDrop={(e, targetNodeId, targetGroupId) => handleDrop(e, "HOLDING", targetNodeId, targetGroupId)}
               onDragOver={(e) => handleDragOver(e, "HOLDING")}
               onItemDragOver={(itemId) => setDragOverItemId(itemId)}
+              onGroupDragOver={(groupId) => setDragOverGroupId(groupId)}
+              onInsertBefore={(nodeId) => setDragInsertBeforeId(nodeId)}
               isDragOver={dragOverBucket === "HOLDING"}
               dragOverItemId={dragOverItemId}
-              draggedItemId={dragState.draggedItem?.id || null}
+              dragOverGroupId={dragOverGroupId}
+              draggedNodeId={dragState.draggedNode?.id || null}
+              draggedType={dragState.draggedType}
+              dragInsertBeforeId={dragInsertBeforeId}
             />
           </div>
         </main>
@@ -383,10 +651,26 @@ function App() {
         displayPeriod={displayPeriod}
       />
 
+      <GroupModal
+        isOpen={groupModalState.isOpen}
+        onClose={() => setGroupModalState({ isOpen: false, bucket: null, editingGroup: null })}
+        onSave={(name, color) => {
+          if (groupModalState.editingGroup) {
+            updateGroup(groupModalState.editingGroup.id, { name, color });
+          } else if (groupModalState.bucket) {
+            createGroup({ name, color, bucket: groupModalState.bucket, isExpanded: true });
+          }
+          setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
+        }}
+        onDelete={groupModalState.editingGroup ? handleGroupModalDelete : undefined}
+        initialData={groupModalState.editingGroup}
+      />
+
       <DeleteModal
         isOpen={deleteModalState.isOpen}
         onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteModalState({ isOpen: false, itemId: null })}
+        onCancel={() => setDeleteModalState({ isOpen: false, itemId: null, groupId: null })}
+        title={deleteModalState.groupId ? "Delete this group?" : "Delete this item?"}
       />
     </div>
   );
