@@ -1,5 +1,19 @@
 export type BucketType = "IN" | "OUT" | "HOLDING";
 
+export type CashflowMode = "REAL" | "WHAT IF";
+
+export type Frequency = "D" | "W" | "M" | "Q" | "Y";
+
+export type DisplayPeriod = "D" | "W" | "M" | "Q" | "Y";
+
+export const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
+  { value: "D", label: "Day" },
+  { value: "W", label: "Week" },
+  { value: "M", label: "Month" },
+  { value: "Q", label: "Quarter" },
+  { value: "Y", label: "Year" },
+];
+
 export type CashflowItemColor = 
   | "blue" 
   | "green" 
@@ -23,23 +37,39 @@ export const COLOR_OPTIONS: { value: CashflowItemColor; label: string; hex: stri
 
 export interface CashflowItem {
   id: string;
+  type: "ITEM";
   title: string;
-  amount: number;
+  realAmount: number | null;
+  whatIfAmount: number | null;
+  frequency: Frequency;
+  isEstimate: boolean;
+  whatIfNote: string | null;
+  bucket: BucketType;
+  groupId: string | null;
+  color: CashflowItemColor;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUserId: string | null;
+  // Legacy field for migration - will be removed after migration
+  amount?: number;
+}
+
+export interface CashflowGroup {
+  id: string;
+  type: "GROUP";
+  name: string;
   bucket: BucketType;
   color: CashflowItemColor;
+  isExpanded: boolean;
   createdAt: Date;
   updatedAt: Date;
   createdByUserId: string | null;
 }
 
-export interface CashflowItemDraft {
-  title: string;
-  amount: number;
-  bucket: BucketType;
-  color: CashflowItemColor;
-}
+export type CashflowNode = CashflowItem | CashflowGroup;
 
 export interface DragState {
-  draggedItem: CashflowItem | null;
+  draggedNode: CashflowNode | null;
   sourceBucket: BucketType | null;
+  draggedType: "ITEM" | "GROUP" | null;
 }
