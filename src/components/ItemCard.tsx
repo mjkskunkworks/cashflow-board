@@ -67,54 +67,58 @@ export const ItemCard = ({
           style={{ backgroundColor: disabled ? "#D1D5DB" : colorHex }}
           aria-hidden="true"
         />
-        <div className="flex-1 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
+        <div className="flex-1 p-4 relative">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               {/* Icon */}
               <span className="material-symbols-rounded icon-card flex-shrink-0" style={{ opacity: disabled ? 0.5 : 1 }}>
                 {item.iconName || "help"}
               </span>
+              {/* Title and what-if note */}
               <div className="flex-1 min-w-0">
-                <p className={`text-body-sm mb-1 truncate ${
+                <p className={`truncate ${
                   disabled ? "text-neutral-400" : "text-muted-foreground"
-                }`}>
+                }`} style={{ fontSize: '16px', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
                   {item.title}
                 </p>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <p className={`text-h4 font-mono ${amountColorClass}`} style={{ fontWeight: 500, ...amountStyle }}>
-                    {amountText}
-                  </p>
-                  {item.isEstimate && (
-                    <span
-                      className="text-xs text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded"
-                      title="Estimate"
-                    >
-                      EST
-                    </span>
-                  )}
-                </div>
                 {showNote && (
-                  <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#BDA2FB', fontFamily: 'Inter, sans-serif', fontWeight: 400 }}>
                     {item.whatIfNote}
                   </p>
                 )}
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className={`flex-shrink-0 p-2 rounded-md hover:bg-secondary transition-colors duration-fast focus:outline-none focus:ring-2 focus:ring-primary opacity-0 group-hover:opacity-100 ${
-                disabled 
-                  ? "text-neutral-300 hover:text-neutral-400" 
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              aria-label={`Edit ${item.title}`}
-            >
-              <Pencil className="w-4 h-4" strokeWidth={1.75} />
-            </button>
+            {/* Amount and EST badge - with extra spacing for edit button */}
+            <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingRight: '32px' }}>
+              {item.isEstimate && (
+                <span
+                  className="text-xs text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded"
+                  title="Estimate"
+                >
+                  EST
+                </span>
+              )}
+              <p className={`font-mono ${amountColorClass}`} style={{ fontWeight: 500, fontSize: '24px', fontFamily: '"JetBrains Mono", monospace', textAlign: 'right', ...amountStyle }}>
+                {amountText}
+              </p>
+            </div>
           </div>
+          {/* Edit button - positioned absolutely, vertically centered, shows on hover */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className={`absolute top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-secondary transition-colors duration-fast focus:outline-none focus:ring-2 focus:ring-primary opacity-0 group-hover:opacity-100 ${
+              disabled 
+                ? "text-neutral-300 hover:text-neutral-400" 
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label={`Edit ${item.title}`}
+            style={{ right: '8px' }}
+          >
+            <Pencil className="w-4 h-4" strokeWidth={1.75} />
+          </button>
         </div>
       </div>
     </div>

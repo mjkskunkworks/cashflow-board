@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { TotalDisplay } from "./components/TotalDisplay";
 import { BucketPanel } from "./components/BucketPanel";
+import { HoldingDrawer } from "./components/HoldingDrawer";
 import { ItemModal } from "./components/ItemModal";
 import { GroupModal } from "./components/GroupModal";
 import { DeleteModal } from "./components/DeleteModal";
@@ -236,10 +237,12 @@ function App() {
     isOpen: boolean;
     bucket: BucketType | null;
     editingItem: CashflowItem | null;
+    groupId: string | null;
   }>({
     isOpen: false,
     bucket: null,
     editingItem: null,
+    groupId: null,
   });
 
   const [groupModalState, setGroupModalState] = useState<{
@@ -263,6 +266,13 @@ function App() {
   });
 
   const [dragOverBucket, setDragOverBucket] = useState<BucketType | null>(null);
+
+  // Preserved data when switching between Item and Group modals
+  const [preservedModalData, setPreservedModalData] = useState<{
+    name: string;
+    color: CashflowItemColor;
+    iconName: string | null;
+  } | null>(null);
 
   // Get nodes by bucket
   const getTopLevelNodesByBucket = (bucket: BucketType): CashflowNode[] => {
@@ -298,11 +308,12 @@ function App() {
     return inTotal - outTotal;
   }, [items, mode, displayPeriod]);
 
-  const handleAddItemClick = (bucket: BucketType) => {
+  const handleAddItemClick = (bucket: BucketType, groupId?: string | null) => {
     setModalState({
       isOpen: true,
       bucket,
       editingItem: null,
+      groupId: groupId ?? null,
     });
   };
 
@@ -314,11 +325,35 @@ function App() {
     });
   };
 
+  // Handle switching from Item modal to Group modal (preserving name, color, iconName)
+  const handleSwitchToGroup = (bucket: BucketType, name: string, color: CashflowItemColor, iconName: string | null) => {
+    setPreservedModalData({ name, color, iconName });
+    setModalState({ isOpen: false, bucket: null, editingItem: null, groupId: null });
+    setGroupModalState({
+      isOpen: true,
+      bucket,
+      editingGroup: null,
+    });
+  };
+
+  // Handle switching from Group modal to Item modal (preserving name, color, iconName)
+  const handleSwitchToItem = (bucket: BucketType, name: string, color: CashflowItemColor, iconName: string | null) => {
+    setPreservedModalData({ name, color, iconName });
+    setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
+    setModalState({
+      isOpen: true,
+      bucket,
+      editingItem: null,
+      groupId: null,
+    });
+  };
+
   const handleEditItem = (item: CashflowItem) => {
     setModalState({
       isOpen: true,
       bucket: item.bucket,
       editingItem: item,
+      groupId: null, // groupId is not used when editing
     });
   };
 
@@ -344,9 +379,10 @@ function App() {
       if (modalState.editingItem) {
         updateItem(modalState.editingItem.id, { title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, color, iconName });
       } else if (modalState.bucket) {
-        createItem({ title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, bucket: modalState.bucket, color, iconName, groupId: null });
+        createItem({ title, realAmount, whatIfAmount, frequency, isEstimate, whatIfNote, bucket: modalState.bucket, color, iconName, groupId: modalState.groupId });
       }
-      setModalState({ isOpen: false, bucket: null, editingItem: null });
+      setModalState({ isOpen: false, bucket: null, editingItem: null, groupId: null });
+      setPreservedModalData(null); // Clear preserved data after save
     } catch (err) {
       console.error("Failed to save item:", err);
     }
@@ -360,6 +396,7 @@ function App() {
         createGroup({ name, bucket: groupModalState.bucket, color, iconName });
       }
       setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
+      setPreservedModalData(null); // Clear preserved data after save
     } catch (err) {
       console.error("Failed to save group:", err);
     }
@@ -372,7 +409,7 @@ function App() {
         itemId: modalState.editingItem.id,
         groupId: null,
       });
-      setModalState({ isOpen: false, bucket: null, editingItem: null });
+      setModalState({ isOpen: false, bucket: null, editingItem: null, groupId: null });
     }
   };
 
@@ -556,7 +593,7 @@ function App() {
           ];
         }
       });
-    } catch (err) {
+      } catch (err) {
       console.error("Failed to move node:", err);
     }
     
@@ -579,14 +616,14 @@ function App() {
         />
         
         <main className="mt-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2fr_1fr] gap-6">
-                    <BucketPanel
-                      title="IN"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <BucketPanel
+              title="IN"
                       topLevelNodes={getTopLevelNodesByBucket("IN")}
                       allItems={getAllItemsByBucket("IN")}
               mode={mode}
               displayPeriod={displayPeriod}
-              onAddItem={() => handleAddItemClick("IN")}
+              onAddItem={(bucket, groupId) => handleAddItemClick(bucket || "IN", groupId)}
               onAddGroup={() => handleAddGroupClick("IN")}
               onEditItem={handleEditItem}
               onEditGroup={handleEditGroup}
@@ -606,13 +643,13 @@ function App() {
               dragInsertBeforeId={dragInsertBeforeId}
             />
             
-                    <BucketPanel
-                      title="OUT"
+            <BucketPanel
+              title="OUT"
                       topLevelNodes={getTopLevelNodesByBucket("OUT")}
                       allItems={getAllItemsByBucket("OUT")}
               mode={mode}
               displayPeriod={displayPeriod}
-              onAddItem={() => handleAddItemClick("OUT")}
+              onAddItem={(bucket, groupId) => handleAddItemClick(bucket || "OUT", groupId)}
               onAddGroup={() => handleAddGroupClick("OUT")}
               onEditItem={handleEditItem}
               onEditGroup={handleEditGroup}
@@ -631,51 +668,61 @@ function App() {
               draggedType={dragState.draggedType}
               dragInsertBeforeId={dragInsertBeforeId}
             />
-            
-                    <BucketPanel
-                      title="HOLDING"
-                      topLevelNodes={getTopLevelNodesByBucket("HOLDING")}
-                      allItems={getAllItemsByBucket("HOLDING")}
-              mode={mode}
-              displayPeriod={displayPeriod}
-              onAddItem={() => handleAddItemClick("HOLDING")}
-              onAddGroup={() => handleAddGroupClick("HOLDING")}
-              onEditItem={handleEditItem}
-              onEditGroup={handleEditGroup}
-              onToggleGroup={toggleGroupExpanded}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDrop={(e, targetNodeId, targetGroupId) => handleDrop(e, "HOLDING", targetNodeId, targetGroupId)}
-              onDragOver={(e) => handleDragOver(e, "HOLDING")}
-              onItemDragOver={(itemId) => setDragOverItemId(itemId)}
-              onGroupDragOver={(groupId) => setDragOverGroupId(groupId)}
-              onInsertBefore={(nodeId) => setDragInsertBeforeId(nodeId)}
-              isDragOver={dragOverBucket === "HOLDING"}
-              dragOverItemId={dragOverItemId}
-              dragOverGroupId={dragOverGroupId}
-              draggedNodeId={dragState.draggedNode?.id || null}
-              draggedType={dragState.draggedType}
-              dragInsertBeforeId={dragInsertBeforeId}
-            />
           </div>
         </main>
       </div>
 
+      {/* Holding Drawer */}
+      <HoldingDrawer
+        topLevelNodes={getTopLevelNodesByBucket("HOLDING")}
+        allItems={getAllItemsByBucket("HOLDING")}
+        mode={mode}
+        displayPeriod={displayPeriod}
+        onAddItem={(bucket, groupId) => handleAddItemClick(bucket || "HOLDING", groupId)}
+        onAddGroup={() => handleAddGroupClick("HOLDING")}
+        onEditItem={handleEditItem}
+        onEditGroup={handleEditGroup}
+        onToggleGroup={toggleGroupExpanded}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDrop={(e, targetNodeId, targetGroupId, insertBeforeId) => handleDrop(e, "HOLDING", targetNodeId, targetGroupId, insertBeforeId)}
+        onDragOver={(e) => handleDragOver(e, "HOLDING")}
+        onItemDragOver={(itemId) => setDragOverItemId(itemId)}
+        onGroupDragOver={(groupId) => setDragOverGroupId(groupId)}
+        onInsertBefore={(nodeId) => setDragInsertBeforeId(nodeId)}
+        isDragOver={dragOverBucket === "HOLDING"}
+        dragOverItemId={dragOverItemId}
+        dragOverGroupId={dragOverGroupId}
+        draggedNodeId={dragState.draggedNode?.id || null}
+        draggedType={dragState.draggedType}
+        dragInsertBeforeId={dragInsertBeforeId}
+      />
+
       <ItemModal
         isOpen={modalState.isOpen}
-        onClose={() => setModalState({ isOpen: false, bucket: null, editingItem: null })}
+        onClose={() => {
+          setModalState({ isOpen: false, bucket: null, editingItem: null, groupId: null });
+          setPreservedModalData(null);
+        }}
         onSave={handleModalSave}
         onDelete={modalState.editingItem ? handleModalDelete : undefined}
         initialData={modalState.editingItem}
         displayPeriod={displayPeriod}
+        preservedData={preservedModalData}
+        onSwitchToGroup={modalState.bucket ? (name, color, iconName) => handleSwitchToGroup(modalState.bucket!, name, color, iconName) : undefined}
       />
 
       <GroupModal
         isOpen={groupModalState.isOpen}
-        onClose={() => setGroupModalState({ isOpen: false, bucket: null, editingGroup: null })}
+        onClose={() => {
+          setGroupModalState({ isOpen: false, bucket: null, editingGroup: null });
+          setPreservedModalData(null);
+        }}
         onSave={handleGroupModalSave}
         onDelete={groupModalState.editingGroup ? handleGroupModalDelete : undefined}
         initialData={groupModalState.editingGroup}
+        preservedData={preservedModalData}
+        onSwitchToItem={groupModalState.bucket ? (name, color, iconName) => handleSwitchToItem(groupModalState.bucket!, name, color, iconName) : undefined}
       />
 
       <DeleteModal

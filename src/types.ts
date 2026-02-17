@@ -22,7 +22,11 @@ export type CashflowItemColor =
   | "pink" 
   | "teal" 
   | "red" 
-  | "yellow";
+  | "yellow"
+  | "lightGray"
+  | "darkGray"
+  | "lightGreen"
+  | "lightPink";
 
 export const COLOR_OPTIONS: { value: CashflowItemColor; label: string; hex: string }[] = [
   { value: "blue", label: "Blue", hex: "#3B82F6" },
@@ -33,6 +37,10 @@ export const COLOR_OPTIONS: { value: CashflowItemColor; label: string; hex: stri
   { value: "teal", label: "Teal", hex: "#14B8A6" },
   { value: "red", label: "Red", hex: "#EF4444" },
   { value: "yellow", label: "Yellow", hex: "#EAB308" },
+  { value: "lightGray", label: "Light Gray", hex: "#D1D5DB" },
+  { value: "darkGray", label: "Dark Gray", hex: "#6B7280" },
+  { value: "lightGreen", label: "Light Green", hex: "#86EFAC" },
+  { value: "lightPink", label: "Light Pink", hex: "#FCE7F3" },
 ];
 
 export interface CashflowItem {

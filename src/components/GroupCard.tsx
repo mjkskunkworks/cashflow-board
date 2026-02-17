@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import { CashflowGroup, CashflowItem, COLOR_OPTIONS, CashflowMode, DisplayPeriod } from "../types";
 import { useFormattedCurrency } from "../hooks/useFormattedCurrency";
-import { getActiveAmountForMath } from "../lib/utils";
+import { getActiveAmountForMath, isWhatIfDisplayed } from "../lib/utils";
 
 interface GroupCardProps {
   group: CashflowGroup;
@@ -38,7 +38,13 @@ export const GroupCard = ({
     return sum + getActiveAmountForMath(item, mode, displayPeriod);
   }, 0);
   
+  // Check if any child items have active what-if amounts (which would show purple)
+  const hasAnyWhatIfAmount = childItems.some((item) => isWhatIfDisplayed(item, mode));
+  
   const amountText = formatCurrency(groupTotal);
+  const purpleHex = COLOR_OPTIONS.find(c => c.value === "purple")?.hex || "#8B5CF6";
+  // Use purple if any child items show what-if, otherwise use default text color (same as item cards)
+  const amountStyle = hasAnyWhatIfAmount ? { color: purpleHex } : {};
 
   return (
     <div
@@ -62,61 +68,59 @@ export const GroupCard = ({
           style={{ backgroundColor: colorHex }}
           aria-hidden="true"
         />
-                  <div className="flex-1 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        {/* Icon */}
-                        <span className="material-symbols-rounded icon-card flex-shrink-0">
-                          {group.iconName || "help"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                {/* Chevron for expand/collapse */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggle();
-                  }}
-                  className="flex-shrink-0 p-1 hover:bg-secondary transition-colors duration-fast"
-                  aria-label={group.isExpanded ? "Collapse group" : "Expand group"}
-                  style={{ outline: 'none', border: 'none', background: 'transparent' }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.target.blur()}
-                >
-                  {group.isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
-                  )}
-                </button>
-                
-                {/* Group name */}
-                <p className="text-body-sm truncate text-muted-foreground">
+        <div className="flex-1 p-4 relative">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {/* Icon */}
+              <span className="material-symbols-rounded icon-card flex-shrink-0">
+                {group.iconName || "help"}
+              </span>
+              {/* Chevron for expand/collapse */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle();
+                }}
+                className="flex-shrink-0 p-1 hover:bg-secondary transition-colors duration-fast"
+                aria-label={group.isExpanded ? "Collapse group" : "Expand group"}
+                style={{ outline: 'none', border: 'none', background: 'transparent' }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onFocus={(e) => e.target.blur()}
+              >
+                {group.isExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" strokeWidth={1.75} />
+                )}
+              </button>
+              {/* Group name */}
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-muted-foreground" style={{ fontSize: '16px', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
                   {group.name}
                 </p>
-                </div>
-                
-                {/* Group total */}
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <p className="text-h4 font-mono" style={{ fontWeight: 500 }}>
-                    {amountText}
-                  </p>
-                </div>
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className={`flex-shrink-0 p-2 rounded-md hover:bg-secondary transition-colors duration-fast focus:outline-none focus:ring-2 focus:ring-primary opacity-0 group-hover:opacity-100 ${
-                "text-muted-foreground hover:text-foreground"
-              }`}
-              aria-label={`Edit ${group.name}`}
-            >
-              <Pencil className="w-4 h-4" strokeWidth={1.75} />
-            </button>
+            {/* Amount - with extra spacing for edit button */}
+            <div className="flex items-center gap-2 flex-shrink-0" style={{ paddingRight: '32px' }}>
+              <p className="font-mono" style={{ fontWeight: 500, fontSize: '24px', fontFamily: '"JetBrains Mono", monospace', textAlign: 'right', ...amountStyle }}>
+                {amountText}
+              </p>
+            </div>
           </div>
+          {/* Edit button - positioned absolutely, vertically centered, shows on hover */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className={`absolute top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-secondary transition-colors duration-fast focus:outline-none focus:ring-2 focus:ring-primary opacity-0 group-hover:opacity-100 ${
+              "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-label={`Edit ${group.name}`}
+            style={{ right: '8px' }}
+          >
+            <Pencil className="w-4 h-4" strokeWidth={1.75} />
+          </button>
         </div>
       </div>
     </div>

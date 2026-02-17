@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { BucketType, CashflowItem, CashflowGroup, CashflowNode, CashflowMode, DisplayPeriod } from "../types";
 import { ItemCard } from "./ItemCard";
 import { GroupCard } from "./GroupCard";
-import { useState, Fragment } from "react";
+import { Fragment } from "react";
 
 interface BucketPanelProps {
   title: BucketType;
@@ -10,7 +10,7 @@ interface BucketPanelProps {
   allItems: CashflowItem[];
   mode: CashflowMode;
   displayPeriod: DisplayPeriod;
-  onAddItem: () => void;
+  onAddItem: (bucket?: BucketType, groupId?: string | null) => void;
   onAddGroup: () => void;
   onEditItem: (item: CashflowItem) => void;
   onEditGroup: (group: CashflowGroup) => void;
@@ -55,7 +55,6 @@ export const BucketPanel = ({
   draggedType,
   dragInsertBeforeId,
 }: BucketPanelProps) => {
-  const [showAddMenu, setShowAddMenu] = useState(false);
 
   // Render nodes in their actual order from the nodes array
   // When a group is expanded, render its child items below it
@@ -114,8 +113,8 @@ export const BucketPanel = ({
             isDragOver={dragOverGroupId === group.id && draggedNodeId !== group.id}
           />
           
-          {/* Render child items if group is expanded */}
-          {group.isExpanded && childItems.length > 0 && (
+          {/* Render child items and plus button if group is expanded */}
+          {group.isExpanded && (
             <div className="pl-4 mt-3 space-y-3">
               {childItems.map((item) => (
                 <Fragment key={item.id}>
@@ -154,6 +153,16 @@ export const BucketPanel = ({
                   </div>
                 </Fragment>
               ))}
+              {/* Plus button to add item to group */}
+              <div className="flex justify-center pl-3">
+                <button
+                  onClick={() => onAddItem(title, group.id)}
+                  className="bg-neutral-100 text-neutral-500 border border-neutral-300 hover:bg-neutral-200 hover:text-neutral-600 h-8 w-8 p-0 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 flex items-center justify-center"
+                  aria-label="Add item to group"
+                >
+                  <Plus className="w-4 h-4" strokeWidth={1.75} />
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -213,44 +222,13 @@ export const BucketPanel = ({
     >
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-h3 font-semibold text-foreground">{title}</h2>
-        <div className="relative">
-          <button
-            onClick={() => setShowAddMenu(!showAddMenu)}
-            className="bg-neutral-100 text-neutral-500 border border-neutral-300 hover:bg-neutral-200 hover:text-neutral-600 h-8 w-8 p-0 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 flex items-center justify-center"
-            aria-label={`Add to ${title}`}
-          >
-            <Plus className="w-4 h-4" strokeWidth={1.75} />
-          </button>
-          
-          {showAddMenu && (
-            <>
-              <div 
-                className="fixed inset-0 z-10" 
-                onClick={() => setShowAddMenu(false)}
-              />
-              <div className="absolute right-0 mt-1 z-20 bg-white border border-neutral-200 rounded-md shadow-lg py-1 min-w-[120px]">
-                <button
-                  onClick={() => {
-                    onAddItem();
-                    setShowAddMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-neutral-100 transition-colors"
-                >
-                  Add Item
-                </button>
-                <button
-                  onClick={() => {
-                    onAddGroup();
-                    setShowAddMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-neutral-100 transition-colors"
-                >
-                  Add Group
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+        <button
+          onClick={() => onAddItem(title)}
+          className="bg-neutral-100 text-neutral-500 border border-neutral-300 hover:bg-neutral-200 hover:text-neutral-600 h-8 w-8 p-0 rounded-md transition-all duration-fast focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 flex items-center justify-center"
+          aria-label={`Add to ${title}`}
+        >
+          <Plus className="w-4 h-4" strokeWidth={1.75} />
+        </button>
       </div>
       
       <div className="flex-1 space-y-3 min-h-[200px]">
